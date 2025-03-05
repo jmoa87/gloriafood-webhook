@@ -1,44 +1,28 @@
-// Importar el módulo 'cors' para manejar solicitudes de diferentes orígenes
-import Cors from 'cors';
+const fetch = require('node-fetch');
 
-// Configurar CORS
-const cors = Cors({
-    origin: '*', // Permite solicitudes desde cualquier origen (ajusta según tus necesidades).
-    methods: ['POST'], // Permite solo solicitudes POST.
-});
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-// Función para ejecutar middleware
-function runMiddleware(req, res, fn) {
-    return new Promise((resolve, reject) => {
-        fn(req, res, (result) => {
-            if (result instanceof Error) {
-                return reject(result);
-            }
-            return resolve(result);
-        });
+  const url = 'https://pos.globalfoodsoft.com/pos/order';
+  const headers = {
+    'Authorization': req.headers['authorization'] || 'mp4xvco43uGl5yZ88', // Usa el token recibido o el default
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Glf-Api-Version': '2',
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(req.body),
     });
-}
-
-// Manejador del endpoint
-export default async function handler(req, res) {
-    // Ejecutar CORS
-    await runMiddleware(req, res, cors);
-
-    // Solo permitir solicitudes POST
-    if (req.method === 'POST') {
-        try {
-            const order = req.body; // Obtener el cuerpo de la solicitud (el pedido)
-            console.log("Pedido recibido:", order);
-
-            // Aquí puedes procesar el pedido (por ejemplo, guardarlo en una base de datos).
-            // Simulamos una respuesta exitosa.
-            res.status(200).json({ success: true, message: "Pedido recibido correctamente", data: order });
-        } catch (error) {
-            console.error("Error al procesar el pedido:", error);
-            res.status(500).json({ success: false, message: "Error interno del servidor" });
-        }
-    } else {
-        // Responder con un error si el método no es POST
-        res.status(405).json({ success: false, message: "Método no permitido" });
-    }
-}
+    const data = await response.text();
+    res.status(response.status).send(data);
+  } catch (error) {
+    console.error('Error en el servidor:', error); // Añade esto para ver el error en los logs de Vercel
+    res.status(500).json({ error: { code: '500', message: 'A server error has occurred', details: error.message } });
+  }
+};
